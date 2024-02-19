@@ -14,6 +14,14 @@ type HddMetrics struct {
 	UsedPercent float64
 }
 
+type MountMetrics struct {
+	Mount       string
+	Total       uint64
+	Free        uint64
+	Used        uint64
+	UsedPercent float64
+}
+
 func GetHddMetrics() (HddMetrics, error) {
 	partitions, err := disk.Partitions(false)
 	if err != nil {
@@ -65,4 +73,61 @@ func GetHddMetrics() (HddMetrics, error) {
 
 	hddMetrics.UsedPercent = float64(hddMetrics.Used) / float64(hddMetrics.Total)
 	return hddMetrics, nil
+}
+
+func GetMountMetrics() ([]MountMetrics, error) {
+
+	var (
+		mountMetrics []MountMetrics
+		wg           sync.WaitGroup
+		mu           sync.Mutex
+		errors       []error
+	)
+
+	fmt.Println("checking initial value for mountMetrics %v", mountMetrics)
+
+	partitions, err := disk.Partitions(false)
+	if err != nil {
+		return mountMetrics, err
+	}
+
+	for _, p := range partitions {
+		wg.Add(1)
+
+		go func(name string) {
+			defer wg.Done()
+
+			usage, err := disk.Usage(p.Mountpoint)
+
+			mu.Lock()
+			if err != nil {
+				errors = append(errors, fmt.Errorf("error getting usage for partition %s: %v", name, err))
+			} else {
+				mountMetrics = append(mountMetrics, MountMetrics{
+					Mount:       p.Mountpoint,
+					Used:        usage.Used,
+					Free:        usage.Free,
+					Total:       usage.Total,
+					UsedPercent: float64(usage.Used) / float64(usage.Total),
+				})
+			}
+			mu.Unlock()
+		}(p.Mountpoint)
+
+		wg.Wait()
+
+		if len(errors) > 0 {
+			var errMsg string
+			for _, e := range errors {
+				errMsg += e.Error() + "\n"
+			}
+			return mountMetrics, fmt.Errorf(
+				"encountered errors while fetching disk metrics:\n%s",
+				errMsg,
+			)
+		}
+
+	}
+
+	return mountMetrics, nil
 }

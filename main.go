@@ -6,7 +6,7 @@ import (
 )
 
 func main() {
-	hddMetrics, err := GetHddMetrics()
+	hddMetrics, err := GetMountMetrics()
 	if err != nil {
 		fmt.Println("Error:", err)
 		return
