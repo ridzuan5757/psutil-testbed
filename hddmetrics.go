@@ -1,10 +1,6 @@
-package main
+package hddmetrics
 
 import (
-	//	"encoding/json"
-	"encoding/json"
-	"fmt"
-
 	"github.com/shirou/gopsutil/v3/disk"
 )
 
@@ -15,8 +11,12 @@ type HddMetrics struct {
 	UsedPercent float64
 }
 
-func main() {
-	partition, _ := disk.Partitions(false)
+func GetHddMetrics() (HddMetrics, error) {
+	partition, err := disk.Partitions(false)
+	if err != nil {
+		return HddMetrics{}, err
+	}
+
 	var pName []string
 	var hddMetrics HddMetrics
 
@@ -24,14 +24,10 @@ func main() {
 		pName = append(pName, p.Mountpoint)
 	}
 
-	ppName, _ := json.MarshalIndent(pName, "", " ")
-	fmt.Println(string(ppName))
-
 	for _, name := range pName {
 		usage, err := disk.Usage(name)
-
 		if err != nil {
-			fmt.Println("Error", err)
+			return HddMetrics{}, err
 		}
 
 		hddMetrics.Free += usage.Free
@@ -42,6 +38,5 @@ func main() {
 
 	hddMetrics.UsedPercent = float64(hddMetrics.Used) / float64(hddMetrics.Total)
 
-	fmt.Println(hddMetrics)
-
+	return hddMetrics, nil
 }
