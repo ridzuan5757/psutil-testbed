@@ -84,8 +84,6 @@ func GetMountMetrics() ([]MountMetrics, error) {
 		errors       []error
 	)
 
-	fmt.Println("checking initial value for mountMetrics %v", mountMetrics)
-
 	partitions, err := disk.Partitions(false)
 	if err != nil {
 		return mountMetrics, err
@@ -110,6 +108,7 @@ func GetMountMetrics() ([]MountMetrics, error) {
 					Total:       usage.Total,
 					UsedPercent: float64(usage.Used) / float64(usage.Total),
 				})
+
 			}
 			mu.Unlock()
 		}(p.Mountpoint)

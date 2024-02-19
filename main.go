@@ -12,6 +12,10 @@ func main() {
 		return
 	}
 
-	ppName, _ := json.MarshalIndent(hddMetrics, "", " ")
-	fmt.Println(string(ppName))
+	for _, mm := range hddMetrics {
+
+		ppName, _ := json.MarshalIndent(mm, "", " ")
+		fmt.Println(string(ppName))
+
+	}
 }
