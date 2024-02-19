@@ -1,4 +1,4 @@
-package hddmetrics
+package main
 
 import (
 	"testing"

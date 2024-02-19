@@ -1,6 +1,9 @@
-package hddmetrics
+package main
 
 import (
+	"fmt"
+	"sync"
+
 	"github.com/shirou/gopsutil/v3/disk"
 )
 
@@ -12,31 +15,54 @@ type HddMetrics struct {
 }
 
 func GetHddMetrics() (HddMetrics, error) {
-	partition, err := disk.Partitions(false)
+	partitions, err := disk.Partitions(false)
 	if err != nil {
 		return HddMetrics{}, err
 	}
 
-	var pName []string
-	var hddMetrics HddMetrics
+	var (
+		hddMetrics HddMetrics
+		wg         sync.WaitGroup
+		mu         sync.Mutex
+		errors     []error
+	)
 
-	for _, p := range partition {
-		pName = append(pName, p.Mountpoint)
-	}
+	for _, p := range partitions {
+		wg.Add(1)
 
-	for _, name := range pName {
-		usage, err := disk.Usage(name)
-		if err != nil {
-			return HddMetrics{}, err
+		go func(name string) {
+			defer wg.Done()
+
+			usage, err := disk.Usage(p.Mountpoint)
+
+			if err != nil {
+				mu.Lock()
+				errors = append(errors, fmt.Errorf("error getting usage for partition %s: %v", name, err))
+				mu.Unlock()
+			}
+
+			mu.Lock()
+			hddMetrics.Free += usage.Free
+			hddMetrics.Used += usage.Used
+			hddMetrics.Total += usage.Total
+			mu.Unlock()
+		}(p.Mountpoint)
+
+		wg.Wait()
+
+		if len(errors) > 0 {
+			var errMsg string
+			for _, e := range errors {
+				errMsg += e.Error() + "\n"
+			}
+			return HddMetrics{}, fmt.Errorf(
+				"encountered errors while fetching disk metrics:\n%s",
+				errMsg,
+			)
 		}
-
-		hddMetrics.Free += usage.Free
-		hddMetrics.Used += usage.Used
-		hddMetrics.Total += usage.Total
 
 	}
 
 	hddMetrics.UsedPercent = float64(hddMetrics.Used) / float64(hddMetrics.Total)
-
 	return hddMetrics, nil
 }
