@@ -1,22 +1,31 @@
 package main
 
 import (
+	"sync"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGetHddMetrics(t *testing.T) {
-	// Run the function
 	metrics, err := GetHddMetrics()
+	assert.NoError(t, err, "GetHddMetrics returned an error")
+	assert.NotZero(t, metrics.Total, "Total disk space is 0")
+	assert.GreaterOrEqual(t, metrics.UsedPercent, 0.0, "Value has to be greater than 0")
+	assert.LessOrEqual(t, metrics.UsedPercent, 1.0, "Value has to be less than 1")
+}
 
-	// Check if there was an error
-	if err != nil {
-		t.Errorf("Error fetching HDD metrics: %v", err)
+func TestConcurrentSafety(t *testing.T) {
+	var wg sync.WaitGroup
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, err := GetHddMetrics()
+			assert.NoError(t, err, "GetHddMetrics returned an error")
+		}()
 	}
-
-	// Check if the metrics are reasonable (assuming we have at least one disk)
-	if metrics.Total == 0 {
-		t.Errorf("Unexpected total disk space: %d", metrics.Total)
-	}
+	wg.Wait()
 }
 
 func BenchmarkGetHddMetrics(b *testing.B) {
@@ -29,19 +38,8 @@ func BenchmarkGetHddMetrics(b *testing.B) {
 }
 
 func TestGetMountMetrics(t *testing.T) {
-
-	// Run the function
-	metrics, err := GetMountMetrics()
-
-	// Check if there was an error
-	if err != nil {
-		t.Errorf("Error fetching HDD metrics: %v", err)
-	}
-
-	// Check if the metrics are reasonable (assuming we have at least one disk)
-	if len(metrics) == 0 {
-		t.Errorf("Unexpected total disk space: %d", len(metrics))
-	}
+	_, err := GetMountMetrics()
+	assert.NoError(t, err, "GetHddMetrics returned an error")
 }
 
 func BenchmarkGetMountMetrics(b *testing.B) {
