@@ -15,7 +15,7 @@ func TestGetHddMetrics(t *testing.T) {
 	assert.LessOrEqual(t, metrics.UsedPercent, 1.0, "Value has to be less than 1")
 }
 
-func TestConcurrentSafety(t *testing.T) {
+func TestGetHddMetricsConcurrentSafety(t *testing.T) {
 	var wg sync.WaitGroup
 	for i := 0; i < 10; i++ {
 		wg.Add(1)
@@ -49,4 +49,18 @@ func BenchmarkGetMountMetrics(b *testing.B) {
 			b.Errorf("Error fetching HDD metrics: %v", err)
 		}
 	}
+}
+
+func TestGetMountMetricsConcurentSafety(t *testing.T) {
+	var wg sync.WaitGroup
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, err := GetMountMetrics()
+			assert.NoError(t, err, "GetMountMetrics returned an error")
+		}()
+	}
+	wg.Wait()
+
 }
